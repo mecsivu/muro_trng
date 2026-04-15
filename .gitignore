@@ -1,0 +1,15 @@
+# Vivado
+*.jou
+*.log
+*.bit
+*.ltx
+.Xil/
+vivado*/
+
+# Simulation
+*.vcd
+*.lxt
+
+# OS
+.DS_Store
+Thumbs.db
