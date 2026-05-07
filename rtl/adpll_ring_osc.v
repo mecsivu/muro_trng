@@ -11,6 +11,7 @@ module adpll_ring_osc #(
     parameter M = 8,
     parameter N = 4
 ) (
+    input  wire clk_sys,      // System clock (100MHz) - for metastability hardening
     input  wire ref_clk,      // Tần số tham chiếu (100KHz - 1000KHz)
     input  wire k_clk,        // Clock cho K-Counter (M*fo)
     input  wire dco_clk,      // Clock cho DCO (2N*fo)
@@ -42,10 +43,11 @@ module adpll_ring_osc #(
         .idout(idout)
     );
     
-    // Divide-by-2 (phản hồi về Phase Detector)
-    // N=4 -> N/2=2 -> cần chia 2
-    divide_by_2 div_fb (
-        .clk(idout),
+    // Divide-by-2 with Metastability Hardening (phản hồi về Phase Detector)
+    // FIX: Use synchronizer instead of direct async clock to avoid gated clock
+    divide_by_2_sync div_fb (
+        .clk_sys(clk_sys),
+        .async_in(idout),
         .reset(reset),
         .out(fb_out)
     );

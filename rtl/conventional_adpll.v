@@ -12,15 +12,16 @@ module conventional_adpll #(
     parameter M = 16,
     parameter N = 8
 ) (
+    input  wire clk_sys,      // System clock (100MHz) - for metastability hardening
     input  wire ref_clk,      // Tần số tham chiếu (25MHz)
-    input  wire k_clk,        // Clock cho K-Counter (M*fo)
-    input  wire dco_clk,      // Clock cho DCO (2N*fo)
+    input  wire k_clk,        // Clock cho K-Counter (M*fo) = 400MHz
+    input  wire dco_clk,      // Clock cho DCO (2N*fo) = 400MHz
     input  wire reset,
     output wire sample_clk,   // Xung lấy mẫu (đã chia 2)
     output wire idout         // DCO output (cho DFF thứ 11)
 );
     wire pd_out, carry;
-    reg  fb_out;              // ← SỬA: wire thành reg
+    reg  fb_out;
     wire dco_out;
     
     // Phase Detector
@@ -46,8 +47,7 @@ module conventional_adpll #(
         .idout(dco_out)
     );
     
-    // Divider /N (phản hồi)
-    // N=8 -> cần chia 8
+    // Divider /N (phản hồi) - Asynchronous, generates jitter for entropy
     reg [2:0] fb_count;
     always @(posedge dco_out or posedge reset) begin
         if (reset) begin
@@ -61,9 +61,10 @@ module conventional_adpll #(
         end
     end
     
-    // Divide-by-2 để tạo sample_clk
-    divide_by_2 div_sample (
-        .clk(dco_out),
+    // Divide-by-2 để tạo sample_clk (Synchronous with metastability hardening)
+    divide_by_2_sync div_sample (
+        .clk_sys(clk_sys),
+        .async_in(dco_out),
         .reset(reset),
         .out(sample_clk)
     );
