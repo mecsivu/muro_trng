@@ -2,7 +2,7 @@
 
 // =============================================================================
 // Module: xor_corrector.v
-// Chức năng: Hậu xử lý - XOR bit hiện tại với bit trước để loại bỏ bias
+// Chức năng: Hậu xử lý - XOR bit hiện tại với bit trước để loại b�? bias
 //            out[i] = raw[i] XOR raw[i-1]
 // =============================================================================
 

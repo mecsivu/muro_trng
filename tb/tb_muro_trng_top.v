@@ -74,7 +74,7 @@ module tb_muro_trng_top;
         // Mỗi bit được lấy mẫu tại cạnh lên của sample_clk
         // sample_clk = 200MHz (chu kỳ 5ns) sau khi chia 2 từ 400MHz
         
-        repeat(500000) begin
+        repeat(1000000) begin
             @(posedge dut.sample_clk);
             bit_count = bit_count + 1;
             $fwrite(file_handle, "%b", random_out);
@@ -101,14 +101,18 @@ module tb_muro_trng_top;
     end
     
     // =========================================================================
-    // Monitor (in ra console mỗi khi có bit mới - giới hạn 20 bit đầu)
+    // Monitor (in ra console mỗi khi có bit mới - giới hạn 100 bit đầu)
     // =========================================================================
     integer print_count = 0;
     
     always @(posedge dut.sample_clk) begin
         if (!reset) begin
-            if (print_count < 20) begin
-                $display("Bit[%0d] = %b", print_count, random_out);
+            if (print_count < 100) begin
+                $display("Bit[%0d]: raw=%b, processed=%b, ro_out=%b_%b_%b_%b_%b_%b_%b_%b_%b_%b, adpll=%b", 
+                    print_count, dut.raw_bit, random_out, 
+                    dut.ro_outputs[0], dut.ro_outputs[1], dut.ro_outputs[2], dut.ro_outputs[3], dut.ro_outputs[4],
+                    dut.ro_outputs[5], dut.ro_outputs[6], dut.ro_outputs[7], dut.ro_outputs[8], dut.ro_outputs[9],
+                    dut.adpll_idout);
                 print_count = print_count + 1;
             end
         end
