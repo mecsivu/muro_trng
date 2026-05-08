@@ -21,20 +21,28 @@ module dco #(
     // Ring Oscillator: Chuỗi NOR gates tạo vòng lặp
     // Jitter tự nhiên từ combinational delay propagation
     // =========================================================================
+    (* KEEP = "TRUE" *) (* DONT_TOUCH = "TRUE" *)
     wire [NUM_STAGES-1:0] nor_chain;
+
     reg dff_q;
     
     // NOR đầu tiên: nhận carry và phản hồi từ DFF
     // (Không dùng assign #delay - synthesis sẽ bỏ qua)
     // FPGA sẽ tự tạo delay từ LUT + routing
-    assign nor_chain[0] = ~(carry | dff_q);
+
     
-    // Các NOR stage tiếp theo: tạo delay qua cascade logic
     genvar i;
+
+    // Stage 0: NOR(carry, feedback từ DFF)
+    assign nor_chain[0] = ~(carry | dff_q);
+
+    // Stage 1..8: Mỗi stage là NOR(output stage trước, carry)
+    // Dùng carry làm input thứ 2 — carry là real signal, buộc
+    // synthesis tạo LUT 2-input thật, không merge thành inverter
     generate
         for (i = 1; i < NUM_STAGES; i = i + 1) begin : nor_stage
-            // Pure combinational - synthesis tự tạo delay thông qua resource
-            assign nor_chain[i] = ~(nor_chain[i-1] | 1'b0);
+            (* KEEP = "TRUE" *) (* DONT_TOUCH = "TRUE" *)
+            assign nor_chain[i] = ~(nor_chain[i-1] | carry);
         end
     endgenerate
     

@@ -7,23 +7,22 @@
 //            Đầu ra: sample_clk (đã chia 2), idout (cho DFF thứ 11)
 // =============================================================================
 
+// THAY port list:
 module conventional_adpll #(
     parameter K = 4,
     parameter M = 16,
     parameter N = 8
 ) (
-    input  wire clk_sys,      // System clock (100MHz) - for metastability hardening
-    input  wire ref_clk,      // Tần số tham chiếu (25MHz)
-    input  wire k_clk,        // Clock cho K-Counter (M*fo) = 400MHz
-    input  wire dco_clk,      // Clock cho DCO (2N*fo) = 400MHz
+    input  wire ref_clk,
+    input  wire k_clk,        // 400 MHz — tạo từ clock_gen bằng counter hoặc MMCM
     input  wire reset,
-    output wire sample_clk,   // Xung lấy mẫu (đã chia 2)
-    output wire idout         // DCO output (cho DFF thứ 11)
+    output wire sample_clk,
+    output wire idout
 );
     wire pd_out, carry;
     reg  fb_out;
     wire dco_out;
-    
+    reg div2_out;
     // Phase Detector
     phase_detector pd (
         .ref(ref_clk),
@@ -41,7 +40,7 @@ module conventional_adpll #(
     
     // DCO
     dco #(.NUM_STAGES(9)) dco_inst (
-        .clk(dco_clk),
+        .clk(k_clk),
         .reset(reset),
         .carry(carry),
         .idout(dco_out)
@@ -62,12 +61,12 @@ module conventional_adpll #(
     end
     
     // Divide-by-2 để tạo sample_clk (Synchronous with metastability hardening)
-    divide_by_2_sync div_sample (
-        .clk_sys(clk_sys),
-        .async_in(dco_out),
-        .reset(reset),
-        .out(sample_clk)
-    );
     
-    assign idout = dco_out;
+    always @(posedge k_clk or posedge reset) begin
+        if (reset) div2_out <= 1'b0;
+        else       div2_out <= dco_out;   // sample DCO output
+    end
+    
+    assign sample_clk = div2_out;
+    assign idout      = dco_out;   
 endmodule
