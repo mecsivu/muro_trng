@@ -1,0 +1,256 @@
+# Quick Start: Remote FPGA + Raspberry Pi Setup
+
+## 🚀 5-Minute Setup
+
+### PART 1: Prepare Raspberry Pi (One-time)
+
+```bash
+# 1. SSH into your Pi
+ssh pi@<pi-ip-address>
+
+# 2. Install Python and dependencies (if not already)
+sudo apt-get update
+sudo apt-get install python3 python3-pip
+pip3 install pyserial
+
+# 3. Create working directory
+mkdir -p ~/scripts
+cd ~/scripts
+```
+
+### PART 2: Get Script on Pi
+
+**Option A: Copy from your PC (recommended)**
+```bash
+# On your LOCAL PC (Windows/Linux/Mac):
+scp c:\muro_trng\scripts\capture_random_bits.py pi@<pi-ip>:/home/pi/scripts/
+```
+
+**Option B: Git clone**
+```bash
+# On Pi:
+cd ~/scripts
+git clone <your-repo>
+```
+
+### PART 3: Verify FPGA Connection
+
+```bash
+# On Pi, check USB devices
+ls /dev/tty*
+
+# You should see:
+# /dev/ttyUSB0  ← Your FPGA board UART port
+# /dev/ttyUSB1  (if other USB devices)
+
+# Test connection (optional)
+python3 -c "import serial; s=serial.Serial('/dev/ttyUSB0', 115200); print('✅ Connected')"
+```
+
+### PART 4: Capture Random Bits
+
+```bash
+# On Pi:
+cd ~/scripts
+
+# Simple capture (10,000 bytes = 80,000 bits, ~1.7 seconds)
+python3 capture_random_bits.py -p /dev/ttyUSB0 -n 10000 -o muro_output.bin
+
+# Wait for completion... (you'll see progress bars)
+```
+
+### PART 5: Download to Your PC
+
+```bash
+# On your LOCAL PC:
+scp C:\Users\HOANG VU>scp -P 10322 "C:/muro_trng_remote/muro_trng_remote.runs/impl_1/muro_trng_top.bit" pi@ps1.fpgas.online:Uploads/
+# Download binary file
+scp pi@<pi-ip>:/home/pi/scripts/muro_output.bin ./
+
+# Download text file (for NIST)
+scp pi@<pi-ip>:/home/pi/scripts/muro_output.txt ./
+
+# Verify
+ls -la muro_output.*
+```
+
+---
+
+## 📊 Example with Real IPs
+
+```bash
+# Assuming Pi IP = 192.168.1.50, user = pi, password = raspberry
+
+# 1. Copy script
+scp c:\muro_trng\scripts\capture_random_bits.py pi@192.168.1.50:/home/pi/scripts/
+
+# 2. SSH login
+ssh pi@192.168.1.50
+
+# 3. On Pi terminal:
+cd ~/scripts
+python3 capture_random_bits.py -p /dev/ttyUSB0 -n 10000 -o sample.bin
+
+# Wait... see output like:
+# 📥 Capture 10000 bytes...
+#   100 /10000 bytes | 500.0 B/s | ETA 19.8s
+#   200 /10000 bytes | 510.0 B/s | ETA 19.0s
+#   ...
+# ✅ Capture hoàn tất!
+
+# 4. Exit Pi
+exit
+
+# 5. Download (back on YOUR PC)
+scp pi@192.168.1.50:/home/pi/scripts/sample.bin ./
+scp pi@192.168.1.50:/home/pi/scripts/sample.txt ./
+
+# 6. Ready for NIST test
+type sample.txt
+```
+
+---
+
+## 🔍 Finding Your Pi IP Address
+
+**If you don't know Pi's IP:**
+
+```bash
+# Method 1: From router (check connected devices)
+# Usually shows as "raspberrypi" or "pi"
+
+# Method 2: Scan network (Linux/Mac)
+sudo nmap -sn 192.168.1.0/24 | grep -i raspberry
+
+# Method 3: From Pi (if you have direct access)
+hostname -I
+
+# Method 4: Check your SSH history
+cat ~/.ssh/known_hosts | grep pi
+```
+
+---
+
+## 🔧 Troubleshooting Remote Capture
+
+| Problem | Solution |
+|---------|----------|
+| "SSH: Connection refused" | Check Pi is ON, IP correct, SSH enabled: `sudo systemctl status ssh` |
+| "/dev/ttyUSB0 not found" | Check USB cable, try `ls /dev/tty*`, look for /dev/ttyUSB1 or /dev/ttyACM0 |
+| "Permission denied (ttyUSB0)" | Fix: `sudo chmod 666 /dev/ttyUSB0` or add user to dialout: `sudo usermod -aG dialout pi` |
+| "Module 'serial' not found" | Install: `pip3 install pyserial` |
+| "Script hangs" | Press Ctrl+C, increase timeout: `python3 ... -t 60` |
+| "Download is slow" | Normal at 115200 baud. For faster: change `-b 921600` (requires FPGA code change) |
+
+---
+
+## ⚡ Batch Capture (Multiple Samples)
+
+```bash
+# On Pi: Capture multiple samples to verify consistency
+
+# Create batch script
+cat > ~/batch_capture.sh << 'EOF'
+#!/bin/bash
+for i in {1..5}; do
+    echo "Capture $i/5..."
+    python3 ~/scripts/capture_random_bits.py \
+        -p /dev/ttyUSB0 \
+        -n 10000 \
+        -o ~/sample_$i.bin
+    sleep 2
+done
+echo "✅ All captures done!"
+EOF
+
+chmod +x ~/batch_capture.sh
+./batch_capture.sh
+
+# Download all
+for i in {1..5}; do
+    scp pi@<ip>:/home/pi/sample_$i.bin ./
+done
+```
+
+---
+
+## 💾 Storage Considerations
+
+**Estimate data size:**
+- 1 byte UART = 8 random bits
+- 10,000 bytes ≈ 100 KB (binary), 80 KB (text)
+- 100,000 bytes ≈ 1 MB (binary), 800 KB (text)
+- 1,000,000 bytes ≈ 10 MB (takes ~90 seconds)
+
+**Pi storage:**
+```bash
+# Check available space
+df -h /home/pi
+
+# Typical Pi: 16-32 GB, plenty of room
+```
+
+---
+
+## 📋 Command Cheat Sheet
+
+```bash
+# Find Pi
+ping raspberrypi.local  # or nmap/network scan
+
+# Copy script
+scp capture_random_bits.py pi@<ip>:/home/pi/scripts/
+
+# SSH login
+ssh pi@<ip>
+
+# Find UART port (on Pi)
+ls /dev/ttyUSB*
+
+# Run capture (on Pi)
+python3 ~/scripts/capture_random_bits.py -p /dev/ttyUSB0 -n 10000
+
+# Download file (from your PC)
+scp pi@<ip>:/home/pi/scripts/sample.bin ./
+
+# Run in background (on Pi)
+nohup python3 ... > log.txt 2>&1 &
+tail -f log.txt
+
+# Kill process (on Pi)
+pkill -f capture_random_bits
+```
+
+---
+
+## ✅ Checklist
+
+- [ ] Pi is reachable via SSH
+- [ ] Python3 + pyserial installed on Pi
+- [ ] FPGA board connected to Pi via USB
+- [ ] UART port identified (/dev/ttyUSB0)
+- [ ] Bitstream programmed on FPGA
+- [ ] Script copied to Pi
+- [ ] Test run: `python3 ... -n 100` (quick test)
+- [ ] Full capture: `python3 ... -n 10000`
+- [ ] Files downloaded to local PC
+- [ ] Ready for NIST test!
+
+---
+
+## 🎯 Next: NIST Test
+
+Once you have `sample.txt` on your PC:
+
+```bash
+# Prepare for NIST
+copy sample.txt c:\nist_test\
+
+# Run NIST assessment
+cd c:\nist_test\
+assess.exe 80000  # For 10,000 bytes = 80,000 bits
+```
+
+---
+
+**Remote capture is ready! 🚀**
