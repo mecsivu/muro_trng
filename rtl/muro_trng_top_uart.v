@@ -14,7 +14,7 @@ module muro_trng_top_uart (
     input  wire reset,
     output wire random_out,        // Single random bit (for monitoring)
     output wire uart_tx,           // UART TX pin
-    input  wire uart_rx            // UART RX pin (optional, for future use)
+                // UART RX pin (optional, for future use)
 );
 
     // =========================================================================
@@ -25,7 +25,7 @@ module muro_trng_top_uart (
     wire fref_600khz, fref_700khz, fref_800khz, fref_900khz, fref_1000khz;
     wire k_dco_clk_ro1,  k_dco_clk_ro2,  k_dco_clk_ro3,  k_dco_clk_ro4,  k_dco_clk_ro5;
     wire k_dco_clk_ro6,  k_dco_clk_ro7,  k_dco_clk_ro8,  k_dco_clk_ro9,  k_dco_clk_ro10;
-
+    wire tx_busy_unused;
     clock_gen cgen (
         .clk_100mhz     (clk_100mhz),
         .reset          (reset),
@@ -136,7 +136,8 @@ module muro_trng_top_uart (
         .data_in    (packed_byte),
         .data_valid (byte_ready),
         .uart_tx    (uart_tx),
-        .tx_busy    (byte_ack)
+        .tx_busy    (tx_busy_unused),   // không dùng
+        .tx_done    (byte_ack)          // ← pulse khi xong → bit_capture tiếp tục
     );
 
 endmodule
