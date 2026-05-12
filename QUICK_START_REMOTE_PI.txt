@@ -23,9 +23,15 @@ cd ~/scripts
 **Option A: Copy from your PC (recommended)**
 ```bash
 # On your LOCAL PC (Windows/Linux/Mac):
+scp -P 10722 "C:/muro_trng_test5/muro_trng_test5.runs/impl_1/muro_trng_top_uart.bit" pi@ps1.fpgas.online:Uploads/
 scp c:\muro_trng\scripts\capture_random_bits.py pi@<pi-ip>:/home/pi/scripts/
+scp -P 10722 "C:/muro_trng/scripts/capture_random_bits.py" pi@ps1.fpgas.online:Uploads/
+scp -P 10322 "C:/muro_trng/scripts/capture_random_bits.py" pi@ps1.fpgas.online:Uploads/
 ```
-
+openFPGALoader -b arty_a7_35t muro_trng_top_uart.bit
+cmd load len fpga : 
+lay bit so luong ve : python3 capture_random_bits.py -p /dev/ttyUSB1 -n 1250000 -o muro_test_5.bin
+lay data ve: scp -P 10322 pi@ps1.fpgas.online:Uploads/capture_random_bits.py "C:/muro_trng/scripts/"
 **Option B: Git clone**
 ```bash
 # On Pi:
@@ -250,7 +256,7 @@ copy sample.txt c:\nist_test\
 cd c:\nist_test\
 assess.exe 80000  # For 10,000 bytes = 80,000 bits
 ```
-
+/mnt/c/muro_trng/random_fpga.txt
 ---
 
 **Remote capture is ready! 🚀**
