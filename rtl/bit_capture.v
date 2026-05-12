@@ -22,7 +22,9 @@ module bit_capture (
     // =========================================================================
     // Synchronize sample_clk vào clk domain (CDC)
     // =========================================================================
-    reg sample_clk_r1, sample_clk_r2, sample_clk_r3;
+    (* KEEP = "TRUE" *) reg sample_clk_r1;
+    (* KEEP = "TRUE" *) reg sample_clk_r2;
+    (* KEEP = "TRUE" *) reg sample_clk_r3;
     wire sample_clk_pulse;
 
     always @(posedge clk or posedge reset) begin

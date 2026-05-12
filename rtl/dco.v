@@ -1,62 +1,77 @@
 `timescale 1ns / 1ps
 
 // =============================================================================
-// Module: dco.v (FPGA-Optimized)
-// Chức năng: Digital Controlled Oscillator
-//            Ring oscillator thực tế: NOR chain với shift register delays
-//            Để tạo jitter: LUT propagation delay
-// NOTE: Delays từ combinational logic path, không phải explicit #delay
+// Module: dco.v  — DCO cho ADPLL-based Ring Oscillator (Figure 3 của paper)
+//
+// Architecture: 9 NOR gates (2-input) + 1 DFF
+//   NOR[0]: inputs = (carry, dff_q)   ← feedback từ DFF
+//   NOR[1..8]: inputs = (NOR[i-1], carry)
+//   DFF: clk = k_clk (= 2N×fo), D = NOR[8], Q = idout
+//
+// CRITICAL — Tại sao dùng LUT2 primitive thay assign:
+//   Vivado synthesis sẽ detect "combinational loop" từ assign statements
+//   và tự động break loop bằng cách thay bằng hằng số.
+//   Instantiate LUT2 primitive trực tiếp → Vivado KHÔNG được phép optimize.
+//   KEEP + DONT_TOUCH trên net/cell buộc P&R giữ nguyên kết nối.
+//
+// NOR = LUT2 với INIT = 4'b0001
+//   I1 I0 | O
+//    0  0  | 1
+//    0  1  | 0
+//    1  0  | 0
+//    1  1  | 0
 // =============================================================================
 
 module dco #(
-    parameter NUM_STAGES = 9,  // Số delay stages
-    parameter NOR_DELAY = 10   // Đối tượng: delay 10ns (FPGA sẽ tự route)
+    parameter NUM_STAGES = 9
 ) (
-    input  wire clk,          // Clock cho DFF (2N*fo)
-    input  wire reset,        // Reset
-    input  wire carry,        // Từ K-Counter (điều khiển tần số)
-    output wire idout         // Đầu ra dao động
+    input  wire clk,      // ID clock = 2N×fo (từ clock_gen)
+    input  wire reset,
+    input  wire carry,    // MSB của K-counter
+    output wire idout
 );
+
     // =========================================================================
-    // Ring Oscillator: Chuỗi NOR gates tạo vòng lặp
-    // Jitter tự nhiên từ combinational delay propagation
+    // NOR chain — instantiate LUT2 primitive trực tiếp
+    // Vivado không thể optimize primitives đã được instantiate
     // =========================================================================
-    (* KEEP = "TRUE" *) (* DONT_TOUCH = "TRUE" *)
-    wire [NUM_STAGES-1:0] nor_chain;
+    (* KEEP = "TRUE" *) wire [NUM_STAGES-1:0] nor_chain;
 
     reg dff_q;
-    
-    // NOR đầu tiên: nhận carry và phản hồi từ DFF
-    // (Không dùng assign #delay - synthesis sẽ bỏ qua)
-    // FPGA sẽ tự tạo delay từ LUT + routing
 
-    
+    // Stage 0: NOR(carry, dff_q)
+    (* DONT_TOUCH = "TRUE" *)
+    LUT2 #(.INIT(4'b0001)) nor0 (
+        .O (nor_chain[0]),
+        .I0(carry),
+        .I1(dff_q)
+    );
+
+    // Stage 1..8: NOR(nor_chain[i-1], carry)
     genvar i;
-
-    // Stage 0: NOR(carry, feedback từ DFF)
-    assign nor_chain[0] = ~(carry | dff_q);
-
-    // Stage 1..8: Mỗi stage là NOR(output stage trước, carry)
-    // Dùng carry làm input thứ 2 — carry là real signal, buộc
-    // synthesis tạo LUT 2-input thật, không merge thành inverter
     generate
         for (i = 1; i < NUM_STAGES; i = i + 1) begin : nor_stage
-            (* KEEP = "TRUE" *) (* DONT_TOUCH = "TRUE" *)
-            assign nor_chain[i] = ~(nor_chain[i-1] | carry);
+            (* DONT_TOUCH = "TRUE" *)
+            LUT2 #(.INIT(4'b0001)) nor_inst (
+                .O (nor_chain[i]),
+                .I0(nor_chain[i-1]),
+                .I1(carry)
+            );
         end
     endgenerate
-    
-    // DFF lấy mẫu từ ring oscillator
-    // Jitter phát sinh từ:
-    // 1. Propagation delay không đều của LUT cascade
-    // 2. Routing variability (timing uncertainty)
-    // 3. Process/temperature variation trên silicon
+
+    // =========================================================================
+    // DFF: sample NOR chain output
+    // Clock = 2N×fo (không phải ring oscillator clock — đây là ADPLL DCO,
+    // DFF được drive bởi external clock để tạo jitter từ setup/hold violation)
+    // =========================================================================
     always @(posedge clk or posedge reset) begin
         if (reset)
             dff_q <= 1'b0;
         else
             dff_q <= nor_chain[NUM_STAGES-1];
     end
-    
+
     assign idout = dff_q;
+
 endmodule

@@ -13,7 +13,7 @@ module muro_trng_top_uart (
     input  wire clk_100mhz,
     input  wire reset,
     output wire random_out,        // Single random bit (for monitoring)
-    output wire uart_tx,           // UART TX pin
+    output wire uart_tx           // UART TX pin
                 // UART RX pin (optional, for future use)
 );
 
@@ -76,7 +76,7 @@ module muro_trng_top_uart (
     wire sample_clk, adpll_idout;
 
     conventional_adpll cadpll (
-        .ref_clk    (fref_25mhz),
+        .ref_clk    (fref_6_25mhz),
         .k_clk      (clk_100mhz),
         .reset      (reset),
         .sample_clk (sample_clk),
